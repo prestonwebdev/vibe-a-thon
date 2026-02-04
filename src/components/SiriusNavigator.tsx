@@ -12,6 +12,7 @@ interface SiriusNavigatorProps {
 }
 
 export function SiriusNavigator({ zoom, rotationX, rotationY, siriusPosition, isPointingAtSirius = false }: SiriusNavigatorProps) {
+  console.log('[SiriusNavigator] Rendering')
   const actualSiriusPosition = siriusPosition || { x: 8, y: 4, z: -6 }
   const groupRef = useRef<THREE.Group>(null)
   const starsRef = useRef<THREE.Points>(null)

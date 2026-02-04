@@ -27,13 +27,19 @@ function useIsMobile() {
 }
 
 export function LocatorView() {
-  const [isLoading, setIsLoading] = useState(false) // Skip loading screen
-  const [showScene, setShowScene] = useState(true)  // Show scene immediately
+  console.log('[LocatorView] Component rendering')
+
+  const [isLoading, setIsLoading] = useState(false)
+  const [showScene, setShowScene] = useState(true)
   const isMobile = useIsMobile()
+
+  console.log('[LocatorView] State:', { isLoading, showScene, isMobile })
 
   // Only use hand tracking on desktop
   const { videoRef, gesture, isReady } = useHandTracking(!isMobile)
   const { location, isLoading: isLocationLoading } = useLocation()
+
+  console.log('[LocatorView] Location:', { location, isLocationLoading, isReady })
   const { orientation, isSupported: isGyroSupported, isPermissionGranted: isGyroGranted, requestPermission: requestGyroPermission } = useDeviceOrientation()
   const [zoom, setZoom] = useState(1)
   const zoomRef = useRef(1)
@@ -209,7 +215,7 @@ export function LocatorView() {
                 <h1 className="font-serif text-2xl font-light tracking-widest text-white/80 md:text-3xl">
                   Second Star to the Right
                 </h1>
-                <p className="mt-2 text-sm text-white/40">
+                <p className="mt-2 mb-8 text-sm text-white/40">
                   and straight on 'til morning
                 </p>
               </motion.div>

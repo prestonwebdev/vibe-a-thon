@@ -11,8 +11,11 @@ interface GlobeSceneProps {
 }
 
 export function GlobeScene({ zoom, rotationX, rotationY, siriusPosition, isPointingAtSirius }: GlobeSceneProps) {
+  console.log('[GlobeScene] Rendering with:', { zoom, rotationX, rotationY, siriusPosition, isPointingAtSirius })
+
   return (
     <Canvas
+      onCreated={() => console.log('[GlobeScene] Canvas created')}
       camera={{ position: [0, 0, 20], fov: 45 }}
       style={{ background: 'transparent' }}
       gl={{ antialias: true, alpha: true }}
