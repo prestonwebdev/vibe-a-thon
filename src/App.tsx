@@ -79,15 +79,6 @@ function App() {
             VIBE-A-THON
           </motion.h1>
 
-          <motion.p
-            className="mb-8 text-xl text-gray-400"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 1, delay: 0.5 }}
-          >
-            Melbourne Edition
-          </motion.p>
-
           <motion.div
             className="flex items-center justify-center gap-2"
             initial={{ opacity: 0 }}
