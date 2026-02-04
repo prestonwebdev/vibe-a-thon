@@ -1,5 +1,5 @@
 import { motion, useMotionValue, useSpring } from 'motion/react'
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useMemo } from 'react'
 
 interface PixieDustParticle {
   id: number
@@ -10,14 +10,173 @@ interface PixieDustParticle {
   delay: number
 }
 
+interface Destination {
+  id: string
+  name: string
+  category: 'landmark' | 'fictional'
+  icon: string
+  lat?: number // Latitude (for landmarks)
+  lng?: number // Longitude (for landmarks)
+  fixedAz?: number // Fixed azimuth (for fictional)
+  fixedAlt?: number // Fixed altitude (for fictional)
+}
+
+const DESTINATIONS: Destination[] = [
+  // Landmarks
+  { id: 'bigben', name: 'Big Ben', category: 'landmark', icon: '🏛️', lat: 51.5007, lng: -0.1246 },
+  { id: 'eiffel', name: 'Eiffel Tower', category: 'landmark', icon: '🗼', lat: 48.8584, lng: 2.2945 },
+  { id: 'sydney', name: 'Sydney Opera House', category: 'landmark', icon: '🎭', lat: -33.8568, lng: 151.2153 },
+  { id: 'fuji', name: 'Mount Fuji', category: 'landmark', icon: '🗻', lat: 35.3606, lng: 138.7274 },
+  // Magical Places
+  { id: 'secondstar', name: 'Second Star to the Right', category: 'fictional', icon: '💫', fixedAz: 90, fixedAlt: 45 },
+  { id: 'neverland', name: 'Neverland', category: 'fictional', icon: '🧚', fixedAz: 95, fixedAlt: 30 },
+]
+
+// Calculate bearing to Earth location
+function calculateBearing(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const lat1Rad = lat1 * Math.PI / 180
+  const lat2Rad = lat2 * Math.PI / 180
+  const dLng = (lng2 - lng1) * Math.PI / 180
+
+  const y = Math.sin(dLng) * Math.cos(lat2Rad)
+  const x = Math.cos(lat1Rad) * Math.sin(lat2Rad) - Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(dLng)
+
+  let bearing = Math.atan2(y, x) * 180 / Math.PI
+  bearing = (bearing + 360) % 360
+
+  return bearing
+}
+
+// Calculate distance between two Earth coordinates using Haversine formula (returns meters)
+function calculateDistanceMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371000 // Earth's radius in meters
+  const lat1Rad = lat1 * Math.PI / 180
+  const lat2Rad = lat2 * Math.PI / 180
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLng = (lng2 - lng1) * Math.PI / 180
+
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1Rad) * Math.cos(lat2Rad) *
+    Math.sin(dLng / 2) * Math.sin(dLng / 2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+
+  return R * c
+}
+
+// Format distance for display
+function formatDistance(meters: number): string {
+  if (meters < 1000) {
+    return `${Math.round(meters)} m`
+  } else if (meters < 100000) {
+    return `${(meters / 1000).toFixed(1)} km`
+  } else if (meters < 1000000) {
+    return `${Math.round(meters / 1000)} km`
+  } else {
+    return `${(meters / 1000).toLocaleString()} km`
+  }
+}
+
+// Calculate pixie dust needed for journey (1 pinch per 100km)
+function calculatePixieDust(meters: number): string {
+  const km = meters / 1000
+  if (km < 100) {
+    return '1 pinch'
+  } else if (km < 1000) {
+    return `${Math.ceil(km / 100)} pinches`
+  } else if (km < 10000) {
+    return `${Math.ceil(km / 500)} handfuls`
+  } else {
+    return `${Math.ceil(km / 2000)} sparkle-clouds`
+  }
+}
+
+// Get compass direction label
+function getDirectionLabel(azimuth: number): string {
+  const directions = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW']
+  const index = Math.round(azimuth / 22.5) % 16
+  return directions[index]
+}
+
 function PeterPanCompass() {
   const [particles, setParticles] = useState<PixieDustParticle[]>([])
-  const [compassRotation, setCompassRotation] = useState(0)
+  const [selectedDestination, setSelectedDestination] = useState<Destination>(DESTINATIONS[0])
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
+  const [locationStatus, setLocationStatus] = useState<'loading' | 'granted' | 'denied'>('loading')
+  const [neverlandDrift, setNeverlandDrift] = useState(0)
   const particleIdRef = useRef(0)
   const mouseX = useMotionValue(0)
   const mouseY = useMotionValue(0)
   const springX = useSpring(mouseX, { stiffness: 150, damping: 15 })
   const springY = useSpring(mouseY, { stiffness: 150, damping: 15 })
+
+  // Request geolocation
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          })
+          setLocationStatus('granted')
+        },
+        () => {
+          // Fallback to San Francisco
+          setUserLocation({ lat: 37.7749, lng: -122.4194 })
+          setLocationStatus('denied')
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+      )
+    } else {
+      setUserLocation({ lat: 37.7749, lng: -122.4194 })
+      setLocationStatus('denied')
+    }
+  }, [])
+
+  // Neverland magical drift
+  useEffect(() => {
+    if (selectedDestination.id === 'neverland') {
+      const interval = setInterval(() => {
+        setNeverlandDrift(Math.sin(Date.now() / 2000) * 10)
+      }, 100)
+      return () => clearInterval(interval)
+    }
+  }, [selectedDestination])
+
+  // Calculate direction, elevation, and distance to destination
+  const { azimuth, altitude, distanceDisplay } = useMemo(() => {
+    if (!userLocation) return { azimuth: 0, altitude: 0, distanceDisplay: '' }
+
+    const dest = selectedDestination
+
+    if (dest.category === 'landmark' && dest.lat !== undefined && dest.lng !== undefined) {
+      const bearing = calculateBearing(userLocation.lat, userLocation.lng, dest.lat, dest.lng)
+      const distMeters = calculateDistanceMeters(userLocation.lat, userLocation.lng, dest.lat, dest.lng)
+      const pixieDust = calculatePixieDust(distMeters)
+      return {
+        azimuth: bearing,
+        altitude: 0,
+        distanceDisplay: `${formatDistance(distMeters)} (${pixieDust} of Pixie Dust)`,
+      }
+    }
+
+    if (dest.category === 'fictional') {
+      const az = (dest.fixedAz || 90) + (dest.id === 'neverland' ? neverlandDrift : 0)
+      // Whimsical pixie dust for magical places - generate a nebulous random number
+      const whimsicalNumber = Math.floor(Math.random() * 900 + 100) // 100-999
+      const whimsicalUnits = ['twinkles', 'moonbeams', 'stardreams', 'fairywhispers', 'wonderglooms'][Math.floor(Math.random() * 5)]
+      const magicalPixieDust = dest.id === 'neverland'
+        ? `${whimsicalNumber} ${whimsicalUnits} of Pixie Dust`
+        : `${Math.floor(Math.random() * 7 + 3)} tinkerbells of Pixie Dust`
+      return {
+        azimuth: az,
+        altitude: dest.fixedAlt || 45,
+        distanceDisplay: `(${magicalPixieDust})`,
+      }
+    }
+
+    return { azimuth: 0, altitude: 0, distanceDisplay: '' }
+  }, [userLocation, selectedDestination, neverlandDrift])
 
   // Track mouse and create pixie dust
   useEffect(() => {
@@ -25,13 +184,6 @@ function PeterPanCompass() {
       mouseX.set(e.clientX)
       mouseY.set(e.clientY)
 
-      // Calculate compass rotation based on mouse position relative to center
-      const centerX = window.innerWidth / 2
-      const centerY = window.innerHeight / 2
-      const angle = Math.atan2(e.clientY - centerY, e.clientX - centerX) * (180 / Math.PI)
-      setCompassRotation(angle + 90)
-
-      // Create pixie dust particles
       const colors = ['#FFD700', '#FFFACD', '#98FB98', '#87CEEB', '#FFB6C1', '#E6E6FA']
       const newParticles: PixieDustParticle[] = []
 
@@ -60,6 +212,11 @@ function PeterPanCompass() {
     }, 500)
     return () => clearInterval(interval)
   }, [])
+
+  const groupedDestinations = {
+    landmark: DESTINATIONS.filter(d => d.category === 'landmark'),
+    fictional: DESTINATIONS.filter(d => d.category === 'fictional'),
+  }
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-gradient-to-b from-[#0a1628] via-[#1a2744] to-[#0d1f3c] text-white">
@@ -173,7 +330,7 @@ function PeterPanCompass() {
       </motion.div>
 
       {/* Main content */}
-      <div className="relative flex min-h-screen flex-col items-center justify-center px-8">
+      <div className="relative flex min-h-screen flex-col items-center justify-center px-8 pt-20">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
@@ -186,14 +343,43 @@ function PeterPanCompass() {
             animate={{ opacity: 1 }}
             transition={{ delay: 0.5 }}
           >
-            SECOND STAR TO THE RIGHT
+            CELESTIAL NAVIGATOR
           </motion.h2>
           <motion.h1
-            className="mb-8 bg-gradient-to-r from-amber-200 via-yellow-100 to-amber-200 bg-clip-text text-6xl font-bold text-transparent"
+            className="mb-6 bg-gradient-to-r from-amber-200 via-yellow-100 to-amber-200 bg-clip-text text-5xl font-bold text-transparent"
             style={{ fontFamily: 'Georgia, serif' }}
           >
             Neverland Compass
           </motion.h1>
+        </motion.div>
+
+        {/* Destination Selector */}
+        <motion.div
+          className="mb-8"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        >
+          <select
+            value={selectedDestination.id}
+            onChange={(e) => {
+              const dest = DESTINATIONS.find(d => d.id === e.target.value)
+              if (dest) setSelectedDestination(dest)
+            }}
+            className="rounded-lg border border-amber-500/30 bg-amber-900/30 px-4 py-2 text-amber-100 backdrop-blur-sm focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-400/20"
+            style={{ fontFamily: 'Georgia, serif' }}
+          >
+            <optgroup label="Landmarks">
+              {groupedDestinations.landmark.map(d => (
+                <option key={d.id} value={d.id}>{d.icon} {d.name}</option>
+              ))}
+            </optgroup>
+            <optgroup label="Magical Places">
+              {groupedDestinations.fictional.map(d => (
+                <option key={d.id} value={d.id}>{d.icon} {d.name}</option>
+              ))}
+            </optgroup>
+          </select>
         </motion.div>
 
         {/* Peter Pan Compass */}
@@ -215,6 +401,39 @@ function PeterPanCompass() {
             {/* Inner decorative ring */}
             <div className="absolute inset-4 rounded-full border-2 border-amber-500/30" />
             <div className="absolute inset-8 rounded-full border border-amber-400/20" />
+
+            {/* Elevation arc indicator */}
+            <svg className="absolute inset-0 h-full w-full" viewBox="0 0 288 288">
+              {/* Elevation scale arc */}
+              <defs>
+                <linearGradient id="elevationGradient" x1="0%" y1="100%" x2="0%" y2="0%">
+                  <stop offset="0%" stopColor="#22c55e" stopOpacity="0.3" />
+                  <stop offset="50%" stopColor="#eab308" stopOpacity="0.5" />
+                  <stop offset="100%" stopColor="#ef4444" stopOpacity="0.3" />
+                </linearGradient>
+              </defs>
+              {/* Background arc showing elevation range */}
+              <path
+                d={`M 144 144 L 144 40 A 104 104 0 0 1 248 144`}
+                fill="url(#elevationGradient)"
+                opacity="0.3"
+              />
+              {/* Current elevation indicator */}
+              {altitude > 0 && (
+                <motion.line
+                  x1="144"
+                  y1="144"
+                  x2={144 + 90 * Math.cos((90 - altitude) * Math.PI / 180)}
+                  y2={144 - 90 * Math.sin((90 - altitude) * Math.PI / 180)}
+                  stroke="#22c55e"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 0.8 }}
+                  transition={{ duration: 0.5 }}
+                />
+              )}
+            </svg>
 
             {/* Compass directions */}
             <div className="absolute inset-0 flex items-center justify-center">
@@ -243,10 +462,10 @@ function PeterPanCompass() {
             {/* Compass needle container */}
             <motion.div
               className="absolute inset-0 flex items-center justify-center"
-              animate={{ rotate: compassRotation }}
+              animate={{ rotate: azimuth }}
               transition={{ type: "spring", stiffness: 50, damping: 10 }}
             >
-              {/* North needle (gold/fairy dust) */}
+              {/* North needle (gold/fairy dust) - points to destination */}
               <svg
                 className="absolute"
                 width="40"
@@ -328,25 +547,51 @@ function PeterPanCompass() {
           </div>
         </motion.div>
 
-        {/* Quote */}
+        {/* Direction info */}
+        <motion.div
+          className="mt-8 text-center"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.8 }}
+        >
+          <p className="text-2xl font-semibold text-amber-100" style={{ fontFamily: 'Georgia, serif' }}>
+            {selectedDestination.icon} {selectedDestination.name}
+          </p>
+          <p className="mt-2 text-lg text-amber-300/80">
+            {Math.round(azimuth)}° {getDirectionLabel(azimuth)}
+            {selectedDestination.category !== 'landmark' && (
+              <span className="ml-3">
+                Elevation: {altitude > 0 ? `${Math.round(altitude)}° above horizon` : 'Below horizon'}
+              </span>
+            )}
+          </p>
+          {/* Distance display */}
+          <p className="mt-2 text-base text-emerald-300/80">
+            Distance: {distanceDisplay}
+          </p>
+        </motion.div>
+
+        {/* Location status */}
         <motion.p
-          className="mt-12 max-w-md text-center text-lg italic text-amber-200/60"
+          className="mt-4 text-xs text-amber-300/40"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 1 }}
+        >
+          {locationStatus === 'loading' && 'Locating you among the stars...'}
+          {locationStatus === 'granted' && userLocation && `Your location: ${userLocation.lat.toFixed(2)}°, ${userLocation.lng.toFixed(2)}°`}
+          {locationStatus === 'denied' && 'Using San Francisco as default location'}
+        </motion.p>
+
+        {/* Quote */}
+        <motion.p
+          className="mt-6 max-w-md text-center text-lg italic text-amber-200/60"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1.2 }}
           style={{ fontFamily: 'Georgia, serif' }}
         >
           "All you need is faith, trust, and a little bit of pixie dust."
-        </motion.p>
-
-        {/* Instructions */}
-        <motion.p
-          className="mt-6 text-sm text-amber-300/40"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1.5 }}
-        >
-          Move your cursor to guide the compass & leave a trail of pixie dust
         </motion.p>
       </div>
     </div>
