@@ -203,7 +203,7 @@ export function LocatorView() {
               <motion.div
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 1, delay: 0.5 }}
+                transition={{ duration: 0.5 }}
                 className="absolute left-0 right-0 top-16 z-10 text-center"
               >
                 <h1 className="font-serif text-2xl font-light tracking-widest text-white/80 md:text-3xl">
@@ -218,7 +218,7 @@ export function LocatorView() {
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ duration: 1.5 }}
+                transition={{ duration: 0.5 }}
                 className="absolute inset-0"
               >
                 <GlobeScene zoom={zoom} rotationX={velocity.x} rotationY={velocity.y} siriusPosition={sirius3DPosition} isPointingAtSirius={isPointingAtSirius} />
@@ -228,7 +228,7 @@ export function LocatorView() {
               <motion.div
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 1, delay: 1 }}
+                transition={{ duration: 0.5 }}
                 className="absolute right-6 top-32 z-10 text-right"
               >
                 <div className="rounded-lg bg-white/5 px-4 py-3 backdrop-blur-sm">
@@ -257,7 +257,7 @@ export function LocatorView() {
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 1, delay: 1 }}
+                transition={{ duration: 0.5 }}
                 className="absolute left-6 top-32 z-10"
               >
                 <div className="rounded-lg bg-white/5 px-4 py-3 backdrop-blur-sm">
@@ -294,7 +294,7 @@ export function LocatorView() {
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 1, delay: 1.5 }}
+                transition={{ duration: 0.3 }}
                 className="absolute bottom-6 left-0 right-0 z-10 text-center"
               >
                 <div className="mx-auto max-w-md space-y-3 px-4">
