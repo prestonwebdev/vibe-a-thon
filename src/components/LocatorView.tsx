@@ -175,12 +175,33 @@ export function LocatorView() {
 
       {/* Main Scene */}
       <div className="relative min-h-screen overflow-hidden bg-gradient-to-b from-[#0a0a1a] via-[#0d1033] to-[#0a0a1a] text-white">
-        {/* Hidden video element for hand tracking */}
-        <video
-          ref={videoRef}
-          className="absolute left-0 top-0 h-1 w-1 opacity-0"
-          playsInline
-        />
+        {/* Camera preview for hand tracking (desktop only) */}
+        {!isMobile && showScene && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.3 }}
+            className="absolute bottom-6 left-6 z-20 overflow-hidden rounded-lg border border-white/10 bg-black/30 backdrop-blur-sm"
+          >
+            <video
+              ref={videoRef}
+              className="h-32 w-44 object-cover"
+              style={{ transform: 'scaleX(-1)' }}
+              playsInline
+            />
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent px-2 py-1">
+              <p className="text-xs text-white/60">Hand Tracking</p>
+            </div>
+          </motion.div>
+        )}
+        {/* Hidden video for mobile */}
+        {isMobile && (
+          <video
+            ref={videoRef}
+            className="absolute left-0 top-0 h-1 w-1 opacity-0"
+            playsInline
+          />
+        )}
 
         {/* Magical gradient orbs */}
         <div className="absolute inset-0 overflow-hidden">
@@ -210,12 +231,12 @@ export function LocatorView() {
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
-                className="absolute left-0 right-0 top-16 z-10 text-center"
+                className="absolute left-0 right-0 top-28 z-10 text-center"
               >
                 <h1 className="font-serif text-2xl font-light tracking-widest text-white/80 md:text-3xl">
                   Second Star to the Right
                 </h1>
-                <p className="mt-2 mb-8 text-sm text-white/40">
+                <p className="mt-4 text-sm text-white/40">
                   and straight on 'til morning
                 </p>
               </motion.div>

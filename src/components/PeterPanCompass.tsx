@@ -162,12 +162,10 @@ function PeterPanCompass() {
 
     if (dest.category === 'fictional') {
       const az = (dest.fixedAz || 90) + (dest.id === 'neverland' ? neverlandDrift : 0)
-      // Whimsical pixie dust for magical places - generate a nebulous random number
-      const whimsicalNumber = Math.floor(Math.random() * 900 + 100) // 100-999
-      const whimsicalUnits = ['twinkles', 'moonbeams', 'stardreams', 'fairywhispers', 'wonderglooms'][Math.floor(Math.random() * 5)]
+      // Whimsical pixie dust for magical places - use stable values
       const magicalPixieDust = dest.id === 'neverland'
-        ? `${whimsicalNumber} ${whimsicalUnits} of Pixie Dust`
-        : `${Math.floor(Math.random() * 7 + 3)} tinkerbells of Pixie Dust`
+        ? '∞ dreams of Pixie Dust'
+        : '7 tinkerbells of Pixie Dust'
       return {
         azimuth: az,
         altitude: dest.fixedAlt || 45,
