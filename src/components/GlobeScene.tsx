@@ -1,4 +1,5 @@
 import { Canvas } from '@react-three/fiber'
+import { Stars } from '@react-three/drei'
 import { SiriusNavigator } from './SiriusNavigator'
 
 interface GlobeSceneProps {
@@ -10,12 +11,28 @@ interface GlobeSceneProps {
 }
 
 export function GlobeScene({ zoom, rotationX, rotationY, siriusPosition, isPointingAtSirius }: GlobeSceneProps) {
+  console.log('[GlobeScene] Rendering with:', { zoom, rotationX, rotationY, siriusPosition, isPointingAtSirius })
+
   return (
     <Canvas
+      onCreated={() => console.log('[GlobeScene] Canvas created')}
       camera={{ position: [0, 0, 20], fov: 45 }}
       style={{ background: 'transparent' }}
+      gl={{ antialias: true, alpha: true }}
     >
-      <ambientLight intensity={0.2} />
+      <ambientLight intensity={0.5} />
+
+      {/* Fallback stars from drei in case custom ones fail */}
+      <Stars
+        radius={100}
+        depth={50}
+        count={3000}
+        factor={4}
+        saturation={0}
+        fade
+        speed={1}
+      />
+
       <SiriusNavigator zoom={zoom} rotationX={rotationX} rotationY={rotationY} siriusPosition={siriusPosition} isPointingAtSirius={isPointingAtSirius} />
     </Canvas>
   )

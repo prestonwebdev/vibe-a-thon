@@ -27,13 +27,19 @@ function useIsMobile() {
 }
 
 export function LocatorView() {
-  const [isLoading, setIsLoading] = useState(true)
-  const [showScene, setShowScene] = useState(false)
+  console.log('[LocatorView] Component rendering')
+
+  const [isLoading, setIsLoading] = useState(false)
+  const [showScene, setShowScene] = useState(true)
   const isMobile = useIsMobile()
+
+  console.log('[LocatorView] State:', { isLoading, showScene, isMobile })
 
   // Only use hand tracking on desktop
   const { videoRef, gesture, isReady } = useHandTracking(!isMobile)
-  const { location } = useLocation()
+  const { location, isLoading: isLocationLoading } = useLocation()
+
+  console.log('[LocatorView] Location:', { location, isLocationLoading, isReady })
   const { orientation, isSupported: isGyroSupported, isPermissionGranted: isGyroGranted, requestPermission: requestGyroPermission } = useDeviceOrientation()
   const [zoom, setZoom] = useState(1)
   const zoomRef = useRef(1)
@@ -169,12 +175,33 @@ export function LocatorView() {
 
       {/* Main Scene */}
       <div className="relative min-h-screen overflow-hidden bg-gradient-to-b from-[#0a0a1a] via-[#0d1033] to-[#0a0a1a] text-white">
-        {/* Hidden video element for hand tracking */}
-        <video
-          ref={videoRef}
-          className="absolute left-0 top-0 h-1 w-1 opacity-0"
-          playsInline
-        />
+        {/* Camera preview for hand tracking (desktop only) */}
+        {!isMobile && showScene && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.3 }}
+            className="absolute bottom-6 left-6 z-20 overflow-hidden rounded-lg border border-white/10 bg-black/30 backdrop-blur-sm"
+          >
+            <video
+              ref={videoRef}
+              className="h-32 w-44 object-cover"
+              style={{ transform: 'scaleX(-1)' }}
+              playsInline
+            />
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent px-2 py-1">
+              <p className="text-xs text-white/60">Hand Tracking</p>
+            </div>
+          </motion.div>
+        )}
+        {/* Hidden video for mobile */}
+        {isMobile && (
+          <video
+            ref={videoRef}
+            className="absolute left-0 top-0 h-1 w-1 opacity-0"
+            playsInline
+          />
+        )}
 
         {/* Magical gradient orbs */}
         <div className="absolute inset-0 overflow-hidden">
@@ -203,13 +230,13 @@ export function LocatorView() {
               <motion.div
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 1, delay: 0.5 }}
-                className="absolute left-0 right-0 top-16 z-10 text-center"
+                transition={{ duration: 0.5 }}
+                className="absolute left-0 right-0 top-28 z-10 text-center"
               >
                 <h1 className="font-serif text-2xl font-light tracking-widest text-white/80 md:text-3xl">
                   Second Star to the Right
                 </h1>
-                <p className="mt-2 text-sm text-white/40">
+                <p className="mt-4 text-sm text-white/40">
                   and straight on 'til morning
                 </p>
               </motion.div>
@@ -218,7 +245,7 @@ export function LocatorView() {
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ duration: 1.5 }}
+                transition={{ duration: 0.5 }}
                 className="absolute inset-0"
               >
                 <GlobeScene zoom={zoom} rotationX={velocity.x} rotationY={velocity.y} siriusPosition={sirius3DPosition} isPointingAtSirius={isPointingAtSirius} />
@@ -228,7 +255,7 @@ export function LocatorView() {
               <motion.div
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 1, delay: 1 }}
+                transition={{ duration: 0.5 }}
                 className="absolute right-6 top-32 z-10 text-right"
               >
                 <div className="rounded-lg bg-white/5 px-4 py-3 backdrop-blur-sm">
@@ -257,7 +284,7 @@ export function LocatorView() {
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 1, delay: 1 }}
+                transition={{ duration: 0.5 }}
                 className="absolute left-6 top-32 z-10"
               >
                 <div className="rounded-lg bg-white/5 px-4 py-3 backdrop-blur-sm">
@@ -294,12 +321,26 @@ export function LocatorView() {
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 1, delay: 1.5 }}
+                transition={{ duration: 0.3 }}
                 className="absolute bottom-6 left-0 right-0 z-10 text-center"
               >
                 <div className="mx-auto max-w-md space-y-3 px-4">
+                  {/* Loading state (mobile and desktop) */}
+                  {isLocationLoading && (
+                    <div className="flex items-center justify-center gap-3">
+                      <motion.div
+                        className="h-2 w-2 rounded-full bg-yellow-400"
+                        animate={{ scale: [1, 1.5, 1], opacity: [0.5, 1, 0.5] }}
+                        transition={{ duration: 1.5, repeat: Infinity }}
+                      />
+                      <span className="text-sm text-white/50">
+                        Finding your location...
+                      </span>
+                    </div>
+                  )}
+
                   {/* Mobile: Gyroscope pointing indicator */}
-                  {isMobile && isGyroSupported && isGyroGranted && siriusData?.isVisible && (
+                  {isMobile && !isLocationLoading && isGyroSupported && isGyroGranted && siriusData?.isVisible && (
                     <motion.div
                       className={`rounded-lg px-6 py-4 backdrop-blur-sm transition-all duration-300 ${
                         isPointingAtSirius
@@ -338,7 +379,7 @@ export function LocatorView() {
                   )}
 
                   {/* Mobile: Gyroscope permission button (iOS) */}
-                  {isMobile && isGyroSupported && !isGyroGranted && (
+                  {isMobile && !isLocationLoading && isGyroSupported && !isGyroGranted && (
                     <button
                       onClick={requestGyroPermission}
                       className="rounded-lg bg-yellow-400/20 px-6 py-3 text-sm text-yellow-300 hover:bg-yellow-400/30 transition-colors"
@@ -348,7 +389,7 @@ export function LocatorView() {
                   )}
 
                   {/* Mobile: Simple instructions when gyro not available or Sirius not visible */}
-                  {isMobile && (!isGyroSupported || !siriusData?.isVisible) && siriusData && (
+                  {isMobile && !isLocationLoading && (!isGyroSupported || !siriusData?.isVisible) && siriusData && (
                     <div className="rounded-lg bg-white/5 px-6 py-4 backdrop-blur-sm">
                       <p className="text-sm text-white/70">
                         {siriusData.isVisible
@@ -359,7 +400,7 @@ export function LocatorView() {
                   )}
 
                   {/* Desktop: Hand tracking controls */}
-                  {!isMobile && (
+                  {!isMobile && !isLocationLoading && (
                     <>
                       {!isReady ? (
                         <div className="flex items-center justify-center gap-3">
